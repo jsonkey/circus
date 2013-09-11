@@ -434,7 +434,8 @@ class Watcher(object):
                     self.kill_process(process)
 
         # adding fresh processes
-        if self.respawn and len(self.processes) < self.numprocesses:
+        if (self.respawn and len(self.processes) < self.numprocesses
+                and not self._stopping):
             self.spawn_processes()
 
         # removing extra processes
@@ -561,7 +562,6 @@ class Watcher(object):
             self.send_signal(process.pid, sig)
             self.notify_event("kill", {"process_pid": process.pid,
                                        "time": time.time()})
-
         except NoSuchProcess:
             # already dead !
             return
@@ -645,6 +645,8 @@ class Watcher(object):
         for process in self.get_active_processes():
             self.send_signal(process.pid, signal.SIGTERM)
 
+        self._stopping = True
+
         # delayed SIGKILL if async is True
         limit = time.time() + self.graceful_timeout
 
@@ -691,6 +693,7 @@ class Watcher(object):
             self.notify_event("stop", {"time": time.time()})
 
         self.stopped = True
+        self._stopping = False
 
         # We ignore the hook result
         self.call_hook('after_stop')
